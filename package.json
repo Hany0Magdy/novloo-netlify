@@ -1,0 +1,15 @@
+{
+  "name": "novloo-netlify-functions",
+  "version": "1.0.0",
+  "description": "Netlify Functions for Novloo - Blogger Publishing",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["netlify", "functions", "blogger", "novloo"],
+  "author": "Novloo",
+  "license": "MIT",
+  "dependencies": {
+    "nodemailer": "^6.9.7"
+  }
+}
