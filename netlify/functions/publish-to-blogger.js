@@ -74,19 +74,20 @@ exports.handler = async (event, context) => {
     const safeCategory = category.replace(/\s+/g, '-');
     fullContent += `<div ${hiddenStyle}>#${safeCategory} #Novloo</div>`;
 
-    // ✅ إرسال Email عبر Nodemailer
+    // ✅ إرسال Email عبر Nodemailer (أفضل من Gmail API)
+    // استخدام Gmail SMTP
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD
+        user: process.env.GMAIL_USER,      // من Environment Variables
+        pass: process.env.GMAIL_APP_PASSWORD  // App Password (ليس كلمة المرور العادية)
       }
     });
 
     const mailOptions = {
       from: process.env.GMAIL_USER,
-      to: process.env.BLOGGER_EMAIL,
-      subject: title,
+      to: process.env.BLOGGER_EMAIL,  // hany0magdi.0904@blogger.com
+      subject: title,  // ✅ العنوان الحقيقي مباشرة
       html: fullContent,
       text: 'Novel Post'
     };
@@ -96,6 +97,32 @@ exports.handler = async (event, context) => {
     await transporter.sendMail(mailOptions);
 
     console.log('✅ Email sent successfully');
+    
+    // ✅ انتظار 8 ثواني لإعطاء Blogger وقت للنشر
+    await new Promise(resolve => setTimeout(resolve, 8000));
+    
+    // ✅ محاولة الحصول على الرابط الحقيقي من Blogger feed
+    let realUrl = 'https://rtewrqwe.blogspot.com/';
+    
+    try {
+      const blogUrl = 'https://rtewrqwe.blogspot.com';
+      const feedUrl = `${blogUrl}/feeds/posts/default?alt=json&max-results=1`;
+      
+      const feedResponse = await fetch(feedUrl);
+      const feedData = await feedResponse.json();
+      
+      if (feedData.feed && feedData.feed.entry && feedData.feed.entry[0]) {
+        const latestPost = feedData.feed.entry[0];
+        const postUrl = latestPost.link.find(l => l.rel === 'alternate')?.href || '';
+        
+        if (postUrl) {
+          realUrl = postUrl;
+          console.log('✅ Got real URL from feed:', postUrl);
+        }
+      }
+    } catch (feedError) {
+      console.log('⚠️ Could not fetch feed:', feedError.message);
+    }
 
     return {
       statusCode: 200,
@@ -103,7 +130,8 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         status: 'success',
         message: 'Posted to Blogger',
-        title: title
+        title: title,
+        url: realUrl // ✅ الرابط الحقيقي
       })
     };
 
