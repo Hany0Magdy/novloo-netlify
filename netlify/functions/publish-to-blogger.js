@@ -98,60 +98,30 @@ exports.handler = async (event, context) => {
 
     console.log('✅ Email sent successfully');
     
+    // ✅ انتظار 8 ثواني لإعطاء Blogger وقت للنشر
+    await new Promise(resolve => setTimeout(resolve, 8000));
+    
     // ✅ محاولة الحصول على الرابط الحقيقي من Blogger feed
-    // نحاول عدة مرات مع انتظار بين كل محاولة
-    let realUrl = '';
-    const maxAttempts = 3;
-    const waitTime = 5000; // 5 ثواني بين كل محاولة
+    let realUrl = 'https://rtewrqwe.blogspot.com/';
     
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      console.log(`⏳ Attempt ${attempt}/${maxAttempts} - Waiting ${waitTime/1000} seconds...`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
+    try {
+      const blogUrl = 'https://rtewrqwe.blogspot.com';
+      const feedUrl = `${blogUrl}/feeds/posts/default?alt=json&max-results=1`;
       
-      try {
-        const blogUrl = 'https://rtewrqwe.blogspot.com';
-        const feedUrl = `${blogUrl}/feeds/posts/default?alt=json&max-results=1&orderby=published`;
+      const feedResponse = await fetch(feedUrl);
+      const feedData = await feedResponse.json();
+      
+      if (feedData.feed && feedData.feed.entry && feedData.feed.entry[0]) {
+        const latestPost = feedData.feed.entry[0];
+        const postUrl = latestPost.link.find(l => l.rel === 'alternate')?.href || '';
         
-        console.log('📡 Fetching latest post from feed...');
-        const feedResponse = await fetch(feedUrl);
-        const feedData = await feedResponse.json();
-        
-        if (feedData.feed && feedData.feed.entry && feedData.feed.entry[0]) {
-          const latestPost = feedData.feed.entry[0];
-          
-          // البحث عن الرابط الصحيح
-          const alternateLink = latestPost.link.find(l => l.rel === 'alternate');
-          if (alternateLink && alternateLink.href) {
-            const postUrl = alternateLink.href;
-            const postTitle = latestPost.title.$t || '';
-            
-            console.log('📝 Post title from feed:', postTitle);
-            console.log('📝 Expected title:', title);
-            console.log('🔗 Post URL:', postUrl);
-            
-            // التحقق من أن العنوان يطابق
-            if (postTitle === title) {
-              realUrl = postUrl;
-              console.log('✅ Title matches! Got real URL:', realUrl);
-              break; // نجحنا، نخرج من الحلقة
-            } else {
-              console.log(`⚠️ Title mismatch on attempt ${attempt}`);
-            }
-          }
-        } else {
-          console.log(`⚠️ No entries found in feed on attempt ${attempt}`);
+        if (postUrl) {
+          realUrl = postUrl;
+          console.log('✅ Got real URL from feed:', postUrl);
         }
-      } catch (feedError) {
-        console.log(`❌ Error on attempt ${attempt}:`, feedError.message);
       }
-    }
-    
-    // إذا لم نحصل على رابط بعد كل المحاولات، نستخدم رابط البحث
-    if (!realUrl) {
-      // استخدام رابط البحث كحل احتياطي
-      const searchQuery = encodeURIComponent(title);
-      realUrl = `https://rtewrqwe.blogspot.com/search?q=${searchQuery}`;
-      console.log('⚠️ Using search URL as fallback:', realUrl);
+    } catch (feedError) {
+      console.log('⚠️ Could not fetch feed:', feedError.message);
     }
 
     return {
