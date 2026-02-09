@@ -98,30 +98,60 @@ exports.handler = async (event, context) => {
 
     console.log('✅ Email sent successfully');
     
-    // ✅ انتظار 8 ثواني لإعطاء Blogger وقت للنشر
-    await new Promise(resolve => setTimeout(resolve, 8000));
-    
     // ✅ محاولة الحصول على الرابط الحقيقي من Blogger feed
-    let realUrl = 'https://rtewrqwe.blogspot.com/';
+    // نحاول عدة مرات لأن Blogger قد يأخذ وقت
+    let realUrl = '';
+    const maxAttempts = 4;
+    const waitTime = 5000; // 5 ثواني بين كل محاولة
     
-    try {
-      const blogUrl = 'https://rtewrqwe.blogspot.com';
-      const feedUrl = `${blogUrl}/feeds/posts/default?alt=json&max-results=1`;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      console.log(`⏳ Attempt ${attempt}/${maxAttempts} - Waiting ${waitTime/1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
       
-      const feedResponse = await fetch(feedUrl);
-      const feedData = await feedResponse.json();
-      
-      if (feedData.feed && feedData.feed.entry && feedData.feed.entry[0]) {
-        const latestPost = feedData.feed.entry[0];
-        const postUrl = latestPost.link.find(l => l.rel === 'alternate')?.href || '';
+      try {
+        const blogUrl = 'https://rtewrqwe.blogspot.com';
+        const feedUrl = `${blogUrl}/feeds/posts/default?alt=json&max-results=5&orderby=published`;
         
-        if (postUrl) {
-          realUrl = postUrl;
-          console.log('✅ Got real URL from feed:', postUrl);
+        console.log('📡 Fetching feed...');
+        const feedResponse = await fetch(feedUrl);
+        const feedData = await feedResponse.json();
+        
+        if (feedData.feed && feedData.feed.entry) {
+          console.log(`Found ${feedData.feed.entry.length} posts in feed`);
+          
+          // البحث عن البوست بالعنوان
+          for (const post of feedData.feed.entry) {
+            const postTitle = post.title.$t || '';
+            console.log(`Checking post: "${postTitle}"`);
+            
+            // مقارنة العناوين
+            if (postTitle === title) {
+              const alternateLink = post.link.find(l => l.rel === 'alternate');
+              if (alternateLink && alternateLink.href) {
+                realUrl = alternateLink.href;
+                console.log(`✅ Found matching post! URL: ${realUrl}`);
+                break; // وجدنا البوست، نخرج من الحلقة
+              }
+            }
+          }
+          
+          // إذا وجدنا الرابط، نخرج من حلقة المحاولات
+          if (realUrl) {
+            console.log('✅ Successfully got real URL');
+            break;
+          } else {
+            console.log(`⚠️ Post not found in attempt ${attempt}`);
+          }
         }
+      } catch (feedError) {
+        console.log(`❌ Error in attempt ${attempt}:`, feedError.message);
       }
-    } catch (feedError) {
-      console.log('⚠️ Could not fetch feed:', feedError.message);
+    }
+    
+    // إذا لم نجد الرابط بعد كل المحاولات
+    if (!realUrl) {
+      console.log('⚠️ Could not get real URL, using blog homepage');
+      realUrl = 'https://rtewrqwe.blogspot.com/';
     }
 
     return {
