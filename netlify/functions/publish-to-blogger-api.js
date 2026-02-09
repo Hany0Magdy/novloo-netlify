@@ -1,5 +1,3 @@
-const fetch = require('node-fetch');
-
 // ═══════════════════════════════════════════════════════════════
 // Blogger API v3 - Custom URL Slugs Support
 // نظام URLs مثل novloo.com بالضبط: 0_timestamp.html
